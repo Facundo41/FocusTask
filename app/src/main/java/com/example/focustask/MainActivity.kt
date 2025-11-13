@@ -32,6 +32,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.focustask.ui.theme.FocusTaskTheme
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavHostController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+
+object Screen {
+    const val HOME = "MainActivity"
+    const val TASKS = "tasks_screen"
+    const val SUBJECTS = "subjects"
+    const val POMODORO = "pomodoro"
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +52,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FocusTaskTheme {
-                MainMenuScreen()
+                AppScreen()
             }
         }
     }
@@ -47,67 +60,32 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainMenuScreen() {
+fun HomeScreenContent() {
     var selectedTab by remember { mutableStateOf(0) }
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar(
-                containerColor = Color.White,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio") },
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = "Tareas") },
-                    label = { Text("Tareas") },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Star, contentDescription = "Materias") },
-                    label = { Text("Materias") },
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Pomodoro") },
-                    label = { Text("Pomodoro") },
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 }
-                )
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            // Header con saludo
-            HeaderSection()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
 
-            Spacer(modifier = Modifier.height(24.dp))
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        HeaderSection()
 
-            // Tarjetas de estadísticas
-            StatisticsGrid()
+        Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
 
-            // Secciones expandibles
-            ExpandableSection(title = "Progreso General")
+        StatisticsGrid()
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-            ExpandableSection(title = "Materias Activas")
-        }
+
+        ExpandableSection(title = "Progreso General")
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExpandableSection(title = "Materias Activas")
     }
 }
 
@@ -203,7 +181,6 @@ fun StatisticCard(
                 .fillMaxSize()
                 .padding(12.dp)
         ) {
-            // Icono en el fondo
             Box(
                 modifier = Modifier
                     .size(32.dp)
@@ -219,7 +196,6 @@ fun StatisticCard(
                 )
             }
 
-            // Contenido
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center
@@ -285,6 +261,111 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         text = "Hello $name!",
         modifier = modifier
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppScreen() {
+    val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            BottomNavigationBar(navController, currentRoute)
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.HOME
+            ) {
+                composable(Screen.HOME) { HomeScreenContent() }
+                composable(Screen.TASKS) { TasksScreen() }
+                composable(Screen.SUBJECTS) { SubjectsScreen() }
+                composable(Screen.POMODORO) { PomodoroScreen() }
+            }
+        }
+    }
+}
+@Composable
+fun BottomNavigationBar(navController: NavHostController, currentRoute: String?) {
+    val navItems = listOf(
+        Pair(Screen.HOME, Icons.Default.Home to "Inicio"),
+        Pair(Screen.TASKS, Icons.Default.List to "Tareas"),
+        Pair(Screen.SUBJECTS, Icons.Default.Star to "Materias"),
+        Pair(Screen.POMODORO, Icons.Default.Person to "Pomodoro")
+    )
+
+    NavigationBar(
+        containerColor = Color.White,
+        contentColor = MaterialTheme.colorScheme.primary
+    ) {
+        navItems.forEach { (route, content) ->
+            val (icon, label) = content
+            NavigationBarItem(
+                icon = { Icon(icon, contentDescription = label) },
+                label = { Text(label) },
+                selected = currentRoute == route,
+                onClick = {
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun TasksScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("¡Pantalla de Tareas!", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Aquí verás la lista de tareas.", fontSize = 18.sp, color = Color.Gray)
+    }
+}
+
+@Composable
+fun SubjectsScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("¡Pantalla de Materias!", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Aquí verás las diferentes materias.", fontSize = 18.sp, color = Color.Gray)
+    }
+}
+
+@Composable
+fun PomodoroScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("¡Pantalla del Pomodoro!", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Aquí verás el temporizador que ayudara a aplicar el metodo pomodoro.", fontSize = 18.sp, color = Color.Gray)
+    }
 }
 
 @Preview(showBackground = true)
